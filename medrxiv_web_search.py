@@ -1,98 +1,168 @@
 import requests
 from bs4 import BeautifulSoup
 from urllib.parse import quote
-from typing import List, Dict, Any
 
-def fetch_article_content(url: str) -> Dict[str, Any]:
-    headers = {"User-Agent": "Mozilla/5.0"}
-    response = requests.get(url, headers=headers)
-    if response.status_code != 200:
-        print("Error fetching page, status code:", response.status_code)
+def generate_medrxiv_search_url(term=None, title=None, author1=None, author2=None, abstract_title=None, 
+                                text_abstract_title=None, journal_code="medrxiv", section=None,
+                                start_date=None, end_date=None, num_results=10, sort="relevance-rank"):
+    """根据用户输入的字段生成 medRxiv 搜索 URL"""
+
+    base_url = "https://www.medrxiv.org/search/"
+    query_parts = []
+    if term:
+        query_parts.append(f"{quote(term)}")
+    if title:
+        query_parts.append(f"title%3A{quote(title)} title_flags%3Amatch-all")
+    if author1:
+        query_parts.append(f"author1%3A{quote(author1)}")
+    if author2:
+        query_parts.append(f"author2%3A{quote(author2)}")
+    if abstract_title:
+        query_parts.append(f"abstract_title%3A{quote(abstract_title)} abstract_title_flags%3Amatch-all")
+    if text_abstract_title:
+        query_parts.append(f"text_abstract_title%3A{quote(text_abstract_title)} text_abstract_title_flags%3Amatch-all")
+    if journal_code:
+        query_parts.append(f"jcode%3A{quote(journal_code)}")
+    if section:
+        query_parts.append(f"toc_section%3A{quote(section)}")
+    if start_date and end_date:
+        query_parts.append(f"limit_from%3A{start_date} limit_to%3A{end_date}")
+    
+    query_parts.append(f"numresults%3A{num_results}")
+    query_parts.append(f"sort%3A{quote(sort)} format_result%3Astandard")
+
+    return base_url + "%20".join(query_parts)
+
+def scrape_medrxiv_results(search_url):
+    """从 medRxiv 搜索结果页面解析文章信息，包括 DOI"""
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36'
+    }
+    response = requests.get(search_url, headers=headers)
+
+    if response.status_code == 200:
+        soup = BeautifulSoup(response.text, 'html.parser')
+        articles = soup.find_all('li', class_='search-result')
+
+        results = []
+        for article in articles:
+            title_tag = article.find('span', class_='highwire-cite-title')
+            title = title_tag.text.strip() if title_tag else "No title"
+
+            authors_tag = article.find('span', class_='highwire-citation-authors')
+            authors = authors_tag.text.strip() if authors_tag else "No authors"
+
+            abstract_tag = article.find('div', class_='highwire-cite-snippet')
+            abstract = abstract_tag.text.strip() if abstract_tag else "No abstract"
+
+            link_tag = article.find('a', class_='highwire-cite-linked-title')
+            link = "https://www.medrxiv.org" + link_tag['href'] if link_tag else "No link"
+
+            doi_tag = article.find('span', class_='highwire-cite-metadata-doi')
+            doi_link = doi_tag.text.strip().replace("doi:", "").strip() if doi_tag else "No DOI"
+
+            metadata = {}
+            result = {
+                "Title": title,
+                "Authors": authors,
+                "DOI_link": doi_link,
+                "Link": link
+            }
+            if doi_link != "No DOI":
+                metadata = doi_get_medrxiv_metadata(doi_link.replace("https://doi.org/", ""))
+                if metadata:
+                    result.update(metadata)
+
+            results.append(result)
+        
+        return results
+    else:
+        print(f"Error: Unable to fetch data (status code: {response.status_code})")
         return None
 
-    page_content = response.text
-    soup = BeautifulSoup(page_content, 'html.parser')
-    
-    # 提取标题
-    title_tag = soup.find("h1", class_="highwire-cite-title")
-    title = title_tag.get_text(strip=True) if title_tag else "N/A"
-    
-    # 提取摘要
-    abstract_section = soup.find("div", class_="section abstract")
-    abstract = abstract_section.get_text(separator="\n", strip=True) if abstract_section else "N/A"
-    
-    # 提取作者信息
-    authors_tag = soup.find("span", class_="highwire-cite-authors")
-    if not authors_tag:
-        authors_tag = soup.find("div", class_="highwire-cite-authors")
-    authors = authors_tag.get_text(strip=True) if authors_tag else "N/A"
-    
-    
-    return {
-        "title": title,
-        "abstract": abstract,
-        "authors": authors,
-        "url": url
-    }
-
-
-
-def search_medrxiv(query: str, num_results: int = 10) -> List[Dict[str, Any]]:
-    # 构造搜索 URL
-    base_url = "https://www.medrxiv.org/search/"
-    search_str = f"{query} numresults:{num_results} sort:relevance"
-    url = base_url + quote(search_str)
-
+def doi_get_medrxiv_metadata(doi, server="medrxiv"):
+    """使用 medRxiv API 通过 DOI 获取文章的详细元数据"""
+    url = f"https://api.medrxiv.org/details/{server}/{doi}/na/json"
     headers = {
-        "User-Agent": "Mozilla/5.0"
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36'
     }
-    response = requests.get(url, headers=headers)
-    if response.status_code != 200:
-        print("Error fetching page, status code:", response.status_code)
-        return []
-
-    soup = BeautifulSoup(response.text, 'html.parser')
-    results = []
     
-    # 根据页面结构查找搜索结果项
-    for li in soup.find_all("li", class_="search-result"):
-        # 提取标题和链接
-        title_tag = li.find("a", class_="highwire-cite-linked-title")
-        title = title_tag.get_text(strip=True) if title_tag else "N/A"
-        link = title_tag["href"] if title_tag and "href" in title_tag.attrs else None
-        if link and not link.startswith("http"):
-            link = "https://www.medrxiv.org" + link
+    response = requests.get(url, headers=headers)
+    
+    if response.status_code == 200:
+        data = response.json()
+        if 'collection' in data and len(data['collection']) > 0:
+            article = data['collection'][0]
+            return {
+                "DOI": article.get("doi", "No DOI"),
+                "Title": article.get("title", "No title"),
+                "Authors": article.get("authors", "No authors"),
+                "Corresponding Author": article.get("author_corresponding", "No corresponding author"),
+                "Corresponding Institution": article.get("author_corresponding_institution", "No institution"),
+                "Date": article.get("date", "No date"),
+                "Version": article.get("version", "No version"),
+                "Category": article.get("category", "No category"),
+                "JATS XML Path": article.get("jats xml path", "No XML path"),
+                "Abstract": article.get("abstract", "No abstract")
+            }
+        else:
+            print("No data found for DOI:", doi)
+            return None
+    else:
+        print(f"Error: Unable to fetch metadata (status code: {response.status_code})")
+        return None
 
-        # 提取 DOI 信息
-        doi_tag = li.find("span", class_="highwire-cite-metadata-doi highwire-cite-metadata")
-        doi = doi_tag.get_text(strip=True) if doi_tag else "N/A"
+def search_key_words(key_words, num_results=10):
+    # 生成搜索 URL
+    search_url = generate_medrxiv_search_url(term=key_words, num_results=num_results)
 
-        # 提取作者信息
-        authors_tag = li.find("span", class_="highwire-citation-authors")
-        authors = authors_tag.get_text(strip=True) if authors_tag else "N/A"
+    print("Generated URL:", search_url)
 
-        article = fetch_article_content(link)
-        abstract = article["abstract"]
+    # 获取并解析搜索结果
+    articles = scrape_medrxiv_results(search_url)
 
-        results.append({
-            "title": title,
-            "abstract": abstract,
-            "link": link,
-            "authors": authors,
-            "doi": doi
-        })
-    return results
+    return articles
+
+
+def search_advanced(term, title, author1, author2, abstract_title, text_abstract_title, section, start_date, end_date, num_results):
+    # 生成搜索 URL
+    search_url = generate_medrxiv_search_url(term, title=title, author1=author1, author2=author2, 
+                                            abstract_title=abstract_title, 
+                                            text_abstract_title=text_abstract_title,
+                                            section=section, start_date=start_date, 
+                                            end_date=end_date, num_results=num_results)
+
+    print("Generated URL:", search_url)
+
+    # 获取并解析搜索结果
+    articles = scrape_medrxiv_results(search_url)
+
+    return articles
+
+
 
 if __name__ == "__main__":
-    query = "COVID-19"
-    articles = search_medrxiv(query, num_results=10)
-    for article in articles:
-        print("Title:", article["title"])
-        print("Link:", article["link"])
-        print("Authors:", article["authors"])
-        print("Abstract:", article["abstract"])
-        print("DOI:", article["doi"])
-        print("-" * 50)
+    # 1. search_key_words 
+    key_words = "COVID-19"
+    articles = search_key_words(key_words, num_results=5)
+    print(articles)
 
-# Export the main function
-__all__ = ['search_medrxiv']
+    # 2. search_advanced
+    # 示例：用户输入搜索参数
+    term = "COVID-19"
+    title = "COVID-19"
+    author1 = "MacLachlan"
+    author2 = None
+    abstract_title = None 
+    text_abstract_title = None
+    section = None 
+    start_date = None 
+    end_date = None 
+    num_results = 5
+    articles = search_advanced(term, title, author1, author2, abstract_title, text_abstract_title, section, start_date, end_date, num_results)
+    print(articles)
+
+    # 3. doi get medrxiv metadata
+    doi = "10.1101/2025.03.09.25323517"
+    metadata = doi_get_medrxiv_metadata(doi)
+    print(metadata)

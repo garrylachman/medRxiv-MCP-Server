@@ -8,19 +8,20 @@ The medRxiv MCP Server provides a bridge between AI assistants and medRxiv's pre
 🤝 Contribute • 📝 Report Bug
 
 ## ✨ Core Features
-- 🔎 Paper Search: Query medRxiv papers with custom search strings ✅
+- 🔎 Paper Search: Query medRxiv papers with custom search strings or advanced search parameters ✅
 - 🚀 Efficient Retrieval: Fast access to paper metadata ✅
+- 📊 Metadata Access: Retrieve detailed metadata for specific papers using DOI ✅
+- 📊 Research Support: Facilitate health sciences research and analysis ✅
 - 📄 Paper Access: Download and read paper content 📝
 - 📋 Paper Listing: View all downloaded papers 📝
 - 🗃️ Local Storage: Papers are saved locally for faster access 📝
 - 📝 Research Prompts: A set of specialized prompts for paper analysis 📝
-- 📊 Research Support: Facilitate health sciences research and analysis 📝
 
 ## 🚀 Quick Start
 
 ### Installing via Smithery
 
-To install medRxiv Server for Claude Desktop automatically via [Smithery](https://smithery.ai/server/arxiv-mcp-server):
+To install medRxiv Server for Claude Desktop automatically via [Smithery](https://smithery.ai/server/@JackKuo666/medrxiv-mcp-server):
 
 #### claude
 
@@ -73,7 +74,82 @@ Start the MCP server:
 python medrxiv_server.py
 ```
 
+Once the server is running, you can use the provided MCP tools in your AI assistant or application. Here are some examples of how to use the tools:
+
+### Example 1: Search for papers using keywords
+
+```python
+result = await mcp.use_tool("search_medrxiv_key_words", {
+    "key_words": "COVID-19 vaccine efficacy",
+    "num_results": 5
+})
+print(result)
+```
+
+### Example 2: Perform an advanced search
+
+```python
+result = await mcp.use_tool("search_medrxiv_advanced", {
+    "term": "COVID-19",
+    "author1": "MacLachlan",
+    "start_date": "2020-01-01",
+    "end_date": "2023-12-31",
+    "num_results": 3
+})
+print(result)
+```
+
+### Example 3: Get metadata for a specific paper
+
+```python
+result = await mcp.use_tool("get_medrxiv_metadata", {
+    "doi": "10.1101/2025.03.09.25323517"
+})
+print(result)
+```
+
+These examples demonstrate how to use the three main tools provided by the medRxiv MCP Server. Adjust the parameters as needed for your specific use case.
+
 ## 🛠 MCP Tools
+
+The medRxiv MCP Server provides the following tools:
+
+### search_medrxiv_key_words
+
+Search for articles on medRxiv using key words.
+
+**Parameters:**
+- `key_words` (str): Search query string
+- `num_results` (int, optional): Number of results to return (default: 10)
+
+**Returns:** List of dictionaries containing article information
+
+### search_medrxiv_advanced
+
+Perform an advanced search for articles on medRxiv.
+
+**Parameters:**
+- `term` (str, optional): General search term
+- `title` (str, optional): Search in title
+- `author1` (str, optional): First author
+- `author2` (str, optional): Second author
+- `abstract_title` (str, optional): Search in abstract and title
+- `text_abstract_title` (str, optional): Search in full text, abstract, and title
+- `section` (str, optional): Section of medRxiv
+- `start_date` (str, optional): Start date for search range (format: YYYY-MM-DD)
+- `end_date` (str, optional): End date for search range (format: YYYY-MM-DD)
+- `num_results` (int, optional): Number of results to return (default: 10)
+
+**Returns:** List of dictionaries containing article information
+
+### get_medrxiv_metadata
+
+Fetch metadata for a medRxiv article using its DOI.
+
+**Parameters:**
+- `doi` (str): DOI of the article
+
+**Returns:** Dictionary containing article metadata
 
 ## Usage with Claude Desktop
 
@@ -84,7 +160,7 @@ Add this configuration to your `claude_desktop_config.json`:
 ```json
 {
   "mcpServers": {
-    "biorxiv": {
+    "medrxiv": {
       "command": "python",
       "args": ["-m", "medrxiv-mcp-server"]
       }
@@ -97,7 +173,7 @@ Add this configuration to your `claude_desktop_config.json`:
 ```json
 {
   "mcpServers": {
-    "biorxiv": {
+    "medrxiv": {
       "command": "C:\\Users\\YOUR_USERNAME\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
       "args": [
         "-m",
@@ -115,7 +191,7 @@ Using with Cline
       "command": "bash",
       "args": [
         "-c",
-        "source /home/YOUR/PATH/mcp-server-bioRxiv/.venv/bin/activate && python /home/YOUR/PATH/mcp-server-bioRxiv/medrxiv_server.py"
+        "source /home/YOUR/PATH/mcp-server-medRxiv/.venv/bin/activate && python /home/YOUR/PATH/mcp-server-medRxiv/medrxiv_server.py"
       ],
       "env": {},
       "disabled": false,
@@ -131,7 +207,7 @@ After restarting Claude Desktop, the following capabilities will be available:
 
 You can ask Claude to search for papers using queries like:
 ```
-Can you search bioRxiv for recent papers about genomics?
+Can you search medRxiv for recent papers about genomics?
 ```
 
 The search will return basic information about matching papers including:
@@ -213,9 +289,17 @@ This prompt includes:
 ## 🔧 Dependencies
 
 - Python 3.10+
-- mcp[cli]>=1.4.1
-- requests>=2.25.1
-- beautifulsoup4>=4.9.3
+- FastMCP
+- asyncio
+- logging
+- requests (for web scraping, used in medrxiv_web_search.py)
+- beautifulsoup4 (for web scraping, used in medrxiv_web_search.py)
+
+You can install the required dependencies using:
+
+```bash
+pip install FastMCP requests beautifulsoup4
+```
 
 ## 🤝 Contributing
 
