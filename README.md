@@ -1,4 +1,5 @@
 # medRxiv MCP Server
+[![smithery badge](https://smithery.ai/badge/@JackKuo666/medrxiv-mcp-server)](https://smithery.ai/server/@JackKuo666/medrxiv-mcp-server)
 
 🔍 Enable AI assistants to search and access medRxiv papers through a simple MCP interface.
 
@@ -21,9 +22,28 @@ The medRxiv MCP Server provides a bridge between AI assistants and medRxiv's pre
 
 To install medRxiv Server for Claude Desktop automatically via [Smithery](https://smithery.ai/server/arxiv-mcp-server):
 
+#### claude
+
 ```bash
-npx -y @smithery/cli install medrxiv-mcp-server --client claude
+npx -y @smithery/cli@latest install @JackKuo666/medrxiv-mcp-server --client claude --config "{}"
 ```
+
+#### Cursor
+
+Paste the following into Settings → Cursor Settings → MCP → Add new server: 
+- Mac/Linux  
+```s
+npx -y @smithery/cli@latest run @JackKuo666/medrxiv-mcp-server --client cursor --config "{}" 
+```
+#### Windsurf
+```sh
+npx -y @smithery/cli@latest install @JackKuo666/medrxiv-mcp-server --client windsurf --config "{}"
+```
+### CLine
+```sh
+npx -y @smithery/cli@latest install @JackKuo666/medrxiv-mcp-server --client cline --config "{}"
+```
+
 
 ### Installing Manually
 Install using uv:
