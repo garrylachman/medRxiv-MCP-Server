@@ -92,4 +92,4 @@ async def get_medrxiv_metadata(doi: str) -> Dict[str, Any]:
 if __name__ == "__main__":
     logging.info("Starting medRxiv MCP server")
     # Initialize and run the server
-    mcp.run(transport='stdio')
+    mcp.run(transport="sse", host="127.0.0.1", port=8000)
