@@ -8,11 +8,19 @@ from medrxiv_web_search import search_key_words, search_advanced, doi_get_medrxi
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Initialize FastMCP server
-mcp = FastMCP("medrxiv")
+mcp = FastMCP(
+    name="medrxiv"
+    instructions="""
+        Provide a search for health articles and academic papers on medRxiv.
+        primary tools is search_medrxiv_key_words(key_words) to search using keywords.
+    """,
+)
 
-@mcp.tool()
-async def search_medrxiv_key_words(key_words: str, num_results: int = 10) -> List[Dict[str, Any]]:
-    logging.info(f"Searching for articles with key words: {key_words}, num_results: {num_results}")
+@mcp.tool(
+    description="Search for articles/academic papers on medRxiv using keywords"
+)
+async def search_medrxiv_key_words(key_words: str, num_results: int = 5) -> List[Dict[str, Any]]:
+    logging.info(f"Searching for articles papers with key words: {key_words}, num_results: {num_results}")
     """
     Search for articles on medRxiv using key words.
 
@@ -29,7 +37,9 @@ async def search_medrxiv_key_words(key_words: str, num_results: int = 10) -> Lis
     except Exception as e:
         return [{"error": f"An error occurred while searching: {str(e)}"}]
 
-@mcp.tool()
+@mcp.tool(
+    description="Perform an advanced search for articles on medRxiv"
+)
 async def search_medrxiv_advanced(
     term: Optional[str] = None,
     title: Optional[str] = None,
@@ -71,7 +81,9 @@ async def search_medrxiv_advanced(
     except Exception as e:
         return [{"error": f"An error occurred while performing advanced search: {str(e)}"}]
 
-@mcp.tool()
+@mcp.tool(
+    description="Fetch metadata for a medRxiv article using its DOI"
+)
 async def get_medrxiv_metadata(doi: str) -> Dict[str, Any]:
     logging.info(f"Fetching metadata for DOI: {doi}")
     """
